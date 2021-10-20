@@ -12,6 +12,7 @@ library(tidyverse)
 library(dplyr)
 library(p8105.datasets)
 library(janitor)
+library(readr)
 ```
 
 ## Question 1 
@@ -171,3 +172,62 @@ ggplot(brfss_panels, aes(x = response, y = data_value, fill = response)) +
     caption = "Data from the brfss dataset"
   )
 ```
+
+## Question 3 
+```{r}
+accel_data = read_csv("./accel_data.csv")
+```
+
+I will load, tidy, and otherwise wrangle the data. The final dataset should include all originally observed variables and values; have useful variable names; include a weekday vs weekend variable; and encode data with reasonable variable classes. Describe the resulting dataset (e.g. what variables exist, how many observations, etc).
+
+```{r}
+accel_df = accel_data %>% 
+  pivot_longer(
+    cols = activity.1:activity.1440,
+    names_to = "activity_number",
+    values_to = "activity_counts",
+    names_prefix = "activity.",
+  ) %>% 
+  mutate(
+    is_weekend = (day == "Saturday" | day == "Sunday")
+    )
+```
+
+The tidied dataset `accel_df` contains `r nrow(accel_df)` rows (or observations) and `r ncol(accel_df)` variables. The dataset's `r ncol(accel_df)` variables include the following: 
+`r colnames(accel_df)`
+
+### Inspecting daily activity 
+Using your tidied dataset, aggregate accross minutes to create a total activity variable for each day, and create a table showing these totals. Are any trends apparent?
+
+```{r}
+total_activity = 
+  accel_df %>% 
+  group_by(day_id) %>% 
+  summarize(total_activity_counts = sum(activity_counts))
+knitr::kable(total_activity)
+```
+
+The total activity counts are does not have a distinct pattern, the counts fluctuate every couple of days. 
+
+
+### Panel 
+Accelerometer data allows the inspection activity over the course of the day. Make a single-panel plot that shows the 24-hour activity time courses for each day and use color to indicate day of the week. Describe in words any patterns or conclusions you can make based on this graph.
+
+```{r fig.width = 8, fig.height = 4}
+accel_df %>% 
+  mutate(activity_number = as.numeric(activity_number)) %>% 
+  group_by(day, activity_number) %>% 
+  summarize(avg_value = mean(activity_counts)) %>% 
+  ggplot(aes(x = activity_number, y = avg_value, color = day)) +
+  geom_smooth(se = FALSE) +
+  scale_x_discrete(limit = c(240,480,720,960,1200,1440), 
+                   labels = c("4", "8", "12", "16", "20", "24")) +
+  labs(
+    title = "Average 24 Hour Activity Time Courses for Each Day of the Week",
+    x = "Activity Number (hrs)",
+    y = "Average Activity Counts",
+    color = "Day of the Week"
+  )
+```
+
+On average, activity counts for all days in a week are at lowest during 23:50 p.m. to 6:00 a.m. There are peaks of average activity counts at around 10:30 a.m of Thurdsay and around 21:00 p.m of Friday. The low levels may be due to sleeping and inability to be active, while the high peaks may be due to daytime and having some free time to exercise. 
